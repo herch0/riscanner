@@ -1,6 +1,8 @@
 #41.87.128.0	41.87.159.255
 
-from urllib import request
+import socket
+from threading import Thread, active_count
+import time
 
 def ip_range(debut, fin):
     x1, x2, x3, x4 = [int(x) for x in debut.split('.')]
@@ -25,17 +27,40 @@ def ip_range(debut, fin):
             x4 += 1
     return ip_list
 
+class Scanner(Thread):
+    def __init__(self, ip):
+        Thread.__init__(Thread)
+        self.ports = range(80, 9999)
+        self.ip = ip
+    #end constructor
+
+    def run(self):
+        for port in self.ports:
+            ouvert = self.check_port(port)
+            if ouvert:
+                print(self.ip, port, ouvert)
+    #end run
+
+    def check_port(self, port):
+        ouvert = True
+        #AF_INET: adresse ipv4 ou nom de domaine
+        #SOCK_STREAM: TCP
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            try:
+                sock.connect((self.ip, port))
+            except OSError as e:
+                ouvert = False
+        return ouvert
+    #end check_port
+#end class Scanner
 
 ips = ip_range("41.87.128.1", "41.87.159.255")
 
-ports = range(80, 9999)
+socket.setdefaulttimeout(15)
+
+MAX_THREADS = 500
 
 for ip in ips:
-    for port in ports:
-        url = 'http://%s:%s' % (ip, port)
-        print('Essai %s' % url)
-        try:
-            with request.urlopen(url, None, 30) as r:
-                print('OK', r.status, r.reason)
-        except Exception as e:
-            # print('Echec %s %s' % (url, e))
+    while active_count() >= MAX_THREADS:
+        time.sleep(5)
+    Scanner(ip).start()
